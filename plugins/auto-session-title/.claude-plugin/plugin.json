@@ -1,0 +1,1 @@
+{ "name": "auto-session-title", "version": "0.1.0", "description": "Renames the session to a fitting title after a few prompts, and refreshes it as the work drifts." }

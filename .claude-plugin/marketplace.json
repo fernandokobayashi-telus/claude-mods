@@ -1,0 +1,12 @@
+{
+  "name": "claude-mods",
+  "description": "Fernando's Claude Code mods",
+  "owner": { "name": "Fernando Kobayashi" },
+  "plugins": [
+    {
+      "name": "auto-session-title",
+      "source": "./plugins/auto-session-title",
+      "description": "Titles the session after a few prompts; /done and /undone add or remove a ✅ in front of the title."
+    }
+  ]
+}
