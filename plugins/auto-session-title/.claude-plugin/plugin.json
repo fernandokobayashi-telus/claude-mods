@@ -1,1 +1,37 @@
-{ "name": "auto-session-title", "version": "0.1.0", "description": "Renames the session to a fitting title after a few prompts, and refreshes it as the work drifts." }
+{
+  "name": "auto-session-title",
+  "version": "0.2.0",
+  "description": "Titles the session after a few prompts and refreshes it as the work drifts; /done and /undone add or remove a checkmark in front of the title.",
+  "userConfig": {
+    "firstTitleAtPrompt": {
+      "type": "number",
+      "title": "First title at prompt",
+      "description": "Give the session its first generated title once this many prompts have been sent. 0 turns automatic titles off.",
+      "default": 3
+    },
+    "refreshEveryPrompts": {
+      "type": "number",
+      "title": "Refresh every N prompts",
+      "description": "Re-title the session this many prompts after the last automatic title, in case the work has moved on. 0 never refreshes.",
+      "default": 10
+    },
+    "maxAutoTitles": {
+      "type": "number",
+      "title": "Stop after N automatic titles",
+      "description": "Stop titling a session on its own after this many automatic titles, so it isn't re-read forever. 2 is the first title plus one refresh; 1 titles once. 0 means no limit. /rename-session always works.",
+      "default": 2
+    },
+    "model": {
+      "type": "string",
+      "title": "Title model",
+      "description": "The model that writes the title. Titles are one short call, so a small model is plenty.",
+      "default": "claude-haiku-5-5"
+    },
+    "checkmark": {
+      "type": "string",
+      "title": "Checkmark",
+      "description": "What /done puts in front of the title and /undone takes off.",
+      "default": "✅"
+    }
+  }
+}

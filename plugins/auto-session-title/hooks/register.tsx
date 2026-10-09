@@ -1,14 +1,10 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-const FIRST_AT = 3
-const REFRESH_EVERY = 10
-const MODEL = 'claude-haiku-5-5'
-const CHECK = '✅'
-
 const TITLE_SYSTEM =
   'You name coding sessions. Reply with only a title: 3-6 words, no quotes, no trailing punctuation, specific to what the work is about.'
 
 type Dollar = EngineInterface
+type TitleState = { count: number; at: number }
 
 async function currentTitle($: Dollar): Promise<string | undefined> {
   const got = await $.mcp.call('ccd_session_mgmt', 'get_session', { session_id: 'self' }).catch(() => undefined)
@@ -30,12 +26,50 @@ async function rename($: Dollar, title: string): Promise<boolean> {
   return isRenamed
 }
 
-export const register: Register = on => {
-  let lastTitledAt = 0
+async function generateTitle($: Dollar, model: string): Promise<string | undefined> {
+  const transcript = (await $.session.messages())
+    .map(m => `${m.role}: ${m.text.slice(0, 400)}`)
+    .join('\n')
+    .slice(-6000)
+  const reply = await $.model.complete({ model, system: TITLE_SYSTEM, prompt: transcript })
+  if (!reply.isAnswered) {
+    $.ui.log(`auto-title: model reply ${JSON.stringify(reply)}`)
+    return undefined
+  }
+  return reply.text.trim().split('\n')[0].replace(/^["']|["']$/g, '').slice(0, 60) || undefined
+}
+
+async function stateKey($: Dollar): Promise<string> {
+  return `titles:${await $.session.id()}`
+}
+
+async function loadState($: Dollar): Promise<TitleState> {
+  const saved = (await $.store.get(await stateKey($))) as Partial<TitleState> | undefined
+  return { count: saved?.count ?? 0, at: saved?.at ?? 0 }
+}
+
+async function saveState($: Dollar, state: TitleState): Promise<void> {
+  await $.store.set(await stateKey($), state)
+}
+
+export const register: Register = (on, options) => {
+  // 0 turns a number off. Defaults live in plugin.json.
+  const count = (value: unknown) => Math.max(0, Math.floor(Number(value)) || 0)
+  const FIRST_AT = count(options.firstTitleAtPrompt)
+  const REFRESH_EVERY = count(options.refreshEveryPrompts)
+  const MAX_AUTO = count(options.maxAutoTitles) // 0: no limit
+  const MODEL = String(options.model || 'claude-haiku-5-5')
+  const CHECK = String(options.checkmark || '✅')
+  const TAKEN_OVER = Number.MAX_SAFE_INTEGER // a manual rename ends automatic ones for the session
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'done', description: `Mark this session finished: put ${CHECK} in front of its title` })
     await $.command.register({ name: 'undone', description: `Take the ${CHECK} off this session's title` })
+    await $.command.register({
+      name: 'rename-session',
+      description: 'Rename this session: name it from the conversation, or pass the title you want',
+      argumentHint: '[new title]',
+    })
     return next(e)
   })
 
@@ -56,31 +90,37 @@ export const register: Register = on => {
     return { text: `Unmarked: ${plain}` }
   })
 
-  // A fitting title after a few prompts, then now and then.
+  on('command.run', { command: 'rename-session' }, async ($, e) => {
+    const wanted = e.args.trim().slice(0, 100)
+    const title = wanted || (await generateTitle($, MODEL))
+    if (!title) return { text: "Couldn't come up with a title." }
+
+    const hadCheck = (await currentTitle($))?.startsWith(CHECK) ?? false
+    const full = hadCheck ? `${CHECK} ${title}` : title
+    if (!(await rename($, full))) return { text: "Couldn't rename the session." }
+
+    await saveState($, { count: TAKEN_OVER, at: await $.session.turns() })
+    return { text: `Renamed: ${full}` }
+  })
+
+  // A fitting title after a few prompts, a limited number of times.
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
-    if (e.agentId !== undefined) return result
+    if (e.agentId !== undefined || FIRST_AT === 0) return result
+
+    const state = await loadState($)
+    if (MAX_AUTO > 0 && state.count >= MAX_AUTO) return result
 
     const turns = await $.session.turns()
-    const isDue = lastTitledAt === 0 ? turns >= FIRST_AT : turns - lastTitledAt >= REFRESH_EVERY
+    const isDue =
+      state.count === 0 ? turns >= FIRST_AT : REFRESH_EVERY > 0 && turns - state.at >= REFRESH_EVERY
     if (!isDue) return result
 
-    const transcript = (await $.session.messages())
-      .map(m => `${m.role}: ${m.text.slice(0, 400)}`)
-      .join('\n')
-      .slice(-6000)
-
-    const reply = await $.model.complete({ model: MODEL, system: TITLE_SYSTEM, prompt: transcript })
-    if (!reply.isAnswered) {
-      $.ui.log(`auto-title: model reply ${JSON.stringify(reply)}`)
-      return result
-    }
-
-    const title = reply.text.trim().split('\n')[0].replace(/^["']|["']$/g, '').slice(0, 60)
+    const title = await generateTitle($, MODEL)
     if (title) {
       const hadCheck = (await currentTitle($))?.startsWith(CHECK) ?? false
       await rename($, hadCheck ? `${CHECK} ${title}` : title)
-      lastTitledAt = turns
+      await saveState($, { count: state.count + 1, at: turns })
     }
     return result
   })
