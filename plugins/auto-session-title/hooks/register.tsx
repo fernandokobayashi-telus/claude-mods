@@ -4,7 +4,7 @@ const TITLE_SYSTEM =
   'You name coding sessions. Reply with only a title: 3-6 words, no quotes, no trailing punctuation, specific to what the work is about.'
 
 type Dollar = EngineInterface
-type TitleState = { count: number; at: number }
+type TitleState = { count: number; at: number; doneAt?: number }
 
 async function currentTitle($: Dollar): Promise<string | undefined> {
   const got = await $.mcp.call('ccd_session_mgmt', 'get_session', { session_id: 'self' }).catch(() => undefined)
@@ -45,11 +45,11 @@ async function stateKey($: Dollar): Promise<string> {
 
 async function loadState($: Dollar): Promise<TitleState> {
   const saved = (await $.store.get(await stateKey($))) as Partial<TitleState> | undefined
-  return { count: saved?.count ?? 0, at: saved?.at ?? 0 }
+  return { count: saved?.count ?? 0, at: saved?.at ?? 0, doneAt: saved?.doneAt }
 }
 
-async function saveState($: Dollar, state: TitleState): Promise<void> {
-  await $.store.set(await stateKey($), state)
+async function saveState($: Dollar, patch: Partial<TitleState>): Promise<void> {
+  await $.store.set(await stateKey($), { ...(await loadState($)), ...patch })
 }
 
 export const register: Register = (on, options) => {
@@ -58,6 +58,7 @@ export const register: Register = (on, options) => {
   const FIRST_AT = count(options.firstTitleAtPrompt)
   const REFRESH_EVERY = count(options.refreshEveryPrompts)
   const MAX_AUTO = count(options.maxAutoTitles) // 0: no limit
+  const UNDONE_AFTER = count(options.undoneAfterPrompts) // 0: a /done mark stays until /undone
   const MODEL = String(options.model || 'claude-haiku-5-5')
   const CHECK = String(options.checkmark || '✅')
   const TAKEN_OVER = Number.MAX_SAFE_INTEGER // a manual rename ends automatic ones for the session
@@ -93,6 +94,7 @@ export const register: Register = (on, options) => {
     if (!title) return { text: "Couldn't read this session's title." }
     if (title.startsWith(CHECK)) return { text: `Already marked: ${title}` }
     await rename($, `${CHECK} ${title}`)
+    await saveState($, { doneAt: await $.session.turns() })
     return { text: `Marked done: ${CHECK} ${title}` }
   })
 
@@ -102,6 +104,7 @@ export const register: Register = (on, options) => {
     if (!title.startsWith(CHECK)) return { text: `Not marked: ${title}` }
     const plain = title.slice(CHECK.length).trim()
     await rename($, plain)
+    await saveState($, { doneAt: undefined })
     return { text: `Unmarked: ${plain}` }
   })
 
@@ -121,12 +124,22 @@ export const register: Register = (on, options) => {
   // A fitting title after a few prompts, a limited number of times.
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
-    if (e.agentId !== undefined || FIRST_AT === 0) return result
+    if (e.agentId !== undefined) return result
 
     const state = await loadState($)
-    if (MAX_AUTO > 0 && state.count >= MAX_AUTO) return result
-
     const turns = await $.session.turns()
+
+    // Work went on after /done: take the mark off. No model call, only the app's own rename.
+    if (UNDONE_AFTER > 0 && state.doneAt !== undefined && turns - state.doneAt >= UNDONE_AFTER) {
+      const title = await currentTitle($)
+      if (title?.startsWith(CHECK)) {
+        await rename($, title.slice(CHECK.length).trim())
+        $.ui.toast(`Work went on after /done: removed ${CHECK} from the title`)
+      }
+      await saveState($, { doneAt: undefined })
+    }
+
+    if (FIRST_AT === 0 || (MAX_AUTO > 0 && state.count >= MAX_AUTO)) return result
     const isDue =
       state.count === 0 ? turns >= FIRST_AT : REFRESH_EVERY > 0 && turns - state.at >= REFRESH_EVERY
     if (!isDue) return result

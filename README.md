@@ -15,7 +15,7 @@ Sessions that start with "can you help me with…" end up with titles that say n
 - **Titles the session on its own.** After the 3rd prompt it reads the conversation and gives the session a short title (3–6 words). It does this a limited number of times (2 by default: the first title plus one refresh 10 prompts later), then stops looking at the session.
 - **`/rename-session`** names the session from the conversation right now. **`/rename-session My own title`** sets exactly that title. Either one counts as you taking over: automatic titling stops for that session.
 - **`/keep-title`** locks the current title: no rename, no model call, and automatic titling stops for that session. **`/auto-title`** turns it back on.
-- **`/done`** puts ✅ in front of the title. **`/undone`** takes it off. Automatic titles and `/rename-session` keep the ✅ if it's there.
+- **`/done`** puts ✅ in front of the title. **`/undone`** takes it off. If you keep working after `/done`, the ✅ comes off by itself after a few more prompts (no model call). Only a ✅ that `/done` put on is removed, never one you added by hand. Automatic titles and `/rename-session` keep the ✅ if it's there.
 
 ### Install
 
@@ -60,6 +60,7 @@ Each setting appears in the plugin's config menu, and is stored in your settings
 | `firstTitleAtPrompt` | `3` | Give the session its first title once this many prompts have been sent. `0` turns automatic titles off. |
 | `refreshEveryPrompts` | `10` | Re-title this many prompts after the last automatic title, in case the work has moved on. `0` never refreshes. |
 | `maxAutoTitles` | `2` | Stop titling on its own after this many automatic titles. `1` titles once and never looks again. `0` means no limit. |
+| `undoneAfterPrompts` | `3` | After `/done`, take the ✅ off again once this many more prompts have been sent. Uses no model call. `0` leaves the mark until you run `/undone`. |
 | `model` | `claude-haiku-5-5` | The model that writes the title. It's one short call, so a small model is plenty. |
 | `checkmark` | `✅` | What `/done` puts in front of the title and `/undone` takes off. |
 

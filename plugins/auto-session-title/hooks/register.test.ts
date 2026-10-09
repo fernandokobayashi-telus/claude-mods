@@ -166,3 +166,33 @@ test('/auto-title does not override first prompt 0', { options: { firstTitleAtPr
   await $.turn.complete(answered)
   expect(renames).toEqual([])
 })
+
+test('takes the check off after more prompts once /done was run', async ($, on) => {
+  world(on, '✅ Perfect title', 6, { 'titles:sess1': { count: 9, at: 3, doneAt: 3 } })
+  await $.turn.complete(answered)
+  expect(renames).toEqual(['Perfect title'])
+})
+
+test('leaves the check while fewer prompts than the setting have passed', async ($, on) => {
+  world(on, '✅ Perfect title', 5, { 'titles:sess1': { count: 9, at: 3, doneAt: 3 } })
+  await $.turn.complete(answered)
+  expect(renames).toEqual([])
+})
+
+test('never takes off a check that /done did not put on', async ($, on) => {
+  world(on, '✅ Perfect title', 30, { 'titles:sess1': { count: 9, at: 3 } })
+  await $.turn.complete(answered)
+  expect(renames).toEqual([])
+})
+
+test('keeps the check when undoneAfterPrompts is 0', { options: { undoneAfterPrompts: 0 } }, async ($, on) => {
+  world(on, '✅ Perfect title', 50, { 'titles:sess1': { count: 9, at: 3, doneAt: 3 } })
+  await $.turn.complete(answered)
+  expect(renames).toEqual([])
+})
+
+test('takes the check off at the configured number of prompts', { options: { undoneAfterPrompts: 1 } }, async ($, on) => {
+  world(on, '✅ Perfect title', 4, { 'titles:sess1': { count: 9, at: 3, doneAt: 3 } })
+  await $.turn.complete(answered)
+  expect(renames).toEqual(['Perfect title'])
+})

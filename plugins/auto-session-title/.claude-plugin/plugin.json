@@ -1,6 +1,6 @@
 {
   "name": "auto-session-title",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Titles the session after a few prompts and refreshes it as the work drifts; /done and /undone add or remove a checkmark in front of the title.",
   "userConfig": {
     "firstTitleAtPrompt": {
@@ -20,6 +20,12 @@
       "title": "Stop after N automatic titles",
       "description": "Stop titling a session on its own after this many automatic titles, so it isn't re-read forever. 2 is the first title plus one refresh; 1 titles once. 0 means no limit. /rename-session always works.",
       "default": 2
+    },
+    "undoneAfterPrompts": {
+      "type": "number",
+      "title": "Undo /done after N more prompts",
+      "description": "If you keep working after /done, take the checkmark off again once this many more prompts have been sent. It uses no model call. Only a mark put on by /done is taken off, never one you added by hand. 0 leaves the mark until you run /undone.",
+      "default": 3
     },
     "model": {
       "type": "string",
