@@ -1,9 +1,11 @@
 import { test, expect, mock } from 'claude-code/testing'
 
 const renames: string[] = []
+const models: string[] = []
 
 function world(on: any, title: string, turns = 1, store: Record<string, unknown> = {}) {
   renames.length = 0
+  models.length = 0
   mock.store(on, store)
   on('turn.complete', async () => ({ text: 'done' }))
   on('session.id', async () => ({ value: 'sess1' }))
@@ -15,7 +17,7 @@ function world(on: any, title: string, turns = 1, store: Record<string, unknown>
     const text = e.tool === 'get_session' ? JSON.stringify({ title }) : 'ok'
     return { value: { content: [{ type: 'text', text }], isError: false } }
   })
-  on('model.complete', async () => ({
+  on('model.complete', async (_: any, e: any) => (models.push(e.model), {
     value: {
       isAnswered: true,
       text: '"Gate 2 resolve bug fix"\n',
@@ -53,12 +55,7 @@ test('never titles on its own when first prompt is 0', { options: { firstTitleAt
 })
 
 test('uses the configured model', { options: { model: 'claude-sonnet-5-5' } }, async ($, on) => {
-  const models: string[] = []
   world(on, 'Claude code mod', 3)
-  on('model.complete', async (_: any, e: any) => {
-    models.push(e.model)
-    return { value: { isAnswered: true, text: 'Some title', usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } }
-  })
   await $.turn.complete(answered)
   expect(models).toEqual(['claude-sonnet-5-5'])
 })
