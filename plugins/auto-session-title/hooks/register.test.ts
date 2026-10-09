@@ -144,3 +144,25 @@ test('after /rename-session the automatic titles stop', async ($, on) => {
   await $.turn.complete(answered)
   expect(renames).toEqual(['My own title'])
 })
+
+test('/keep-title stops automatic titles and renames nothing', async ($, on) => {
+  world(on, 'Perfect title', 3)
+  await run($, 'keep-title')
+  await $.turn.complete(answered)
+  expect(renames).toEqual([])
+})
+
+test('/auto-title lets automatic titles run again after /keep-title', async ($, on) => {
+  world(on, 'Perfect title', 3)
+  await run($, 'keep-title')
+  await run($, 'auto-title')
+  await $.turn.complete(answered)
+  expect(renames).toEqual(['Gate 2 resolve bug fix'])
+})
+
+test('/auto-title does not override first prompt 0', { options: { firstTitleAtPrompt: 0 } }, async ($, on) => {
+  world(on, 'Perfect title', 30)
+  await run($, 'auto-title')
+  await $.turn.complete(answered)
+  expect(renames).toEqual([])
+})

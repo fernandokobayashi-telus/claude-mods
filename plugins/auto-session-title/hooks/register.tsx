@@ -70,7 +70,22 @@ export const register: Register = (on, options) => {
       description: 'Rename this session: name it from the conversation, or pass the title you want',
       argumentHint: '[new title]',
     })
+    await $.command.register({ name: 'keep-title', description: "Keep this session's title: stop automatic renaming for this session" })
+    await $.command.register({ name: 'auto-title', description: 'Let this session be titled automatically again' })
     return next(e)
+  })
+
+  on('command.run', { command: 'keep-title' }, async $ => {
+    await saveState($, { count: TAKEN_OVER, at: await $.session.turns() })
+    const title = await currentTitle($)
+    return { text: title ? `Keeping: ${title}` : 'Keeping the current title.' }
+  })
+
+  on('command.run', { command: 'auto-title' }, async $ => {
+    await saveState($, { count: 0, at: await $.session.turns() })
+    return {
+      text: FIRST_AT === 0 ? 'Unlocked, but automatic titles are off in the plugin settings.' : 'Automatic titling is back on for this session.',
+    }
   })
 
   on('command.run', { command: 'done' }, async $ => {

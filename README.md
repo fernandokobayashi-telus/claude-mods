@@ -14,6 +14,7 @@ Sessions that start with "can you help me with…" end up with titles that say n
 
 - **Titles the session on its own.** After the 3rd prompt it reads the conversation and gives the session a short title (3–6 words). It does this a limited number of times (2 by default: the first title plus one refresh 10 prompts later), then stops looking at the session.
 - **`/rename-session`** names the session from the conversation right now. **`/rename-session My own title`** sets exactly that title. Either one counts as you taking over: automatic titling stops for that session.
+- **`/keep-title`** locks the current title: no rename, no model call, and automatic titling stops for that session. **`/auto-title`** turns it back on.
 - **`/done`** puts ✅ in front of the title. **`/undone`** takes it off. Automatic titles and `/rename-session` keep the ✅ if it's there.
 
 ### Install
@@ -62,7 +63,7 @@ Each setting appears in the plugin's config menu, and is stored in your settings
 | `model` | `claude-haiku-5-5` | The model that writes the title. It's one short call, so a small model is plenty. |
 | `checkmark` | `✅` | What `/done` puts in front of the title and `/undone` takes off. |
 
-`/rename-session`, `/done` and `/undone` always work, whatever these are set to.
+`/rename-session`, `/keep-title`, `/auto-title`, `/done` and `/undone` always work, whatever these are set to.
 
 ### Cost
 
